@@ -1,9 +1,11 @@
 from decimal import Decimal
+from io import BytesIO
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
+from openpyxl import load_workbook
 
 from .models import (
     Carrera, Curso, EstadoNota, Estudiante, Facultad, Jornada, Matricula, Nota,
@@ -102,6 +104,32 @@ class ModulosAcademicosTests(TestCase):
         self.assertRedirects(response, lista_url)
         self.assertFalse(Estudiante.objects.filter(pk=estudiante.pk).exists())
 
+    def test_related_records_prevent_deletion(self):
+        universidad = Universidad.objects.create(
+            nombre="Universidad protegida",
+            siglas="UPR",
+            ciudad="Quito",
+            user=self.usuario,
+        )
+        Facultad.objects.create(
+            universidad=universidad,
+            nombre="Facultad protegida",
+            user=self.usuario,
+        )
+        eliminar_url = reverse(
+            "academico:eliminar",
+            kwargs={"modelo": "universidades", "pk": universidad.pk},
+        )
+
+        response = self.client.post(eliminar_url, follow=True)
+
+        self.assertRedirects(
+            response,
+            reverse("academico:lista", kwargs={"modelo": "universidades"}),
+        )
+        self.assertTrue(Universidad.objects.filter(pk=universidad.pk).exists())
+        self.assertContains(response, "No se puede eliminar")
+
 
 class DatosDemostracionTests(TestCase):
     def test_seed_creates_seven_students_active_sections_enrollments_and_passes(self):
@@ -174,3 +202,112 @@ class DatosDemostracionTests(TestCase):
         self.assertEqual(Seccion.objects.filter(periodo__activo=True).count(), 7)
         self.assertEqual(Matricula.objects.count(), 7)
         self.assertEqual(Nota.objects.filter(estado=EstadoNota.APROBADO).count(), 7)
+
+
+class ExportacionesTests(TestCase):
+    def setUp(self):
+        usuario = get_user_model().objects.create_user(
+            username="exportador",
+            password="Dahlia-River-4092!",
+        )
+        self.client.force_login(usuario)
+        universidad = Universidad.objects.create(
+            nombre="Universidad de exportación",
+            siglas="UE",
+            ciudad="Quito",
+            user=usuario,
+        )
+        facultad = Facultad.objects.create(
+            universidad=universidad,
+            nombre="Facultad de exportación",
+            user=usuario,
+        )
+        self.carrera = Carrera.objects.create(
+            facultad=facultad,
+            codigo="EXP",
+            nombre="Carrera de exportación",
+            user=usuario,
+        )
+
+    def test_excel_exports_all_filtered_rows_and_only_allowed_columns(self):
+        for numero in range(12):
+            Estudiante.objects.create(
+                cedula=f"08{numero:08d}",
+                nombres=f"Grupo {numero}",
+                apellidos="Prueba",
+                carrera=self.carrera,
+            )
+        url = reverse("academico:lista", kwargs={"modelo": "estudiantes"})
+
+        response = self.client.get(
+            url,
+            {
+                "texto": "Grupo",
+                "campos": ["nombres", "campo_no_permitido"],
+                "exportar": "excel",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        libro = load_workbook(BytesIO(response.content), read_only=True)
+        hoja = libro.active
+        self.assertEqual(hoja.max_column, 1)
+        self.assertEqual(hoja["A3"].value, "Nombres")
+        self.assertEqual(hoja.max_row, 15)
+        self.assertEqual(hoja["A15"].value, "Grupo 9")
+
+    def test_pdf_export_returns_a_pdf_document(self):
+        Estudiante.objects.create(
+            cedula="0712345678",
+            nombres="Grupo",
+            apellidos="Prueba",
+            carrera=self.carrera,
+        )
+        url = reverse("academico:lista", kwargs={"modelo": "estudiantes"})
+
+        response = self.client.get(url, {"exportar": "pdf"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF"))
+
+
+class MatriculaNotasTests(TestCase):
+    def setUp(self):
+        usuario = get_user_model().objects.create_user(
+            username="matriculas",
+            password="Dahlia-River-4092!",
+        )
+        self.client.force_login(usuario)
+        call_command("poblar_datos")
+
+    def test_editing_enrollment_saves_its_note_in_the_same_form(self):
+        nota = Nota.objects.select_related("matricula").first()
+        matricula = nota.matricula
+        url = reverse(
+            "academico:editar",
+            kwargs={"modelo": "matriculas", "pk": matricula.pk},
+        )
+        datos = {
+            "estudiante": matricula.estudiante_id,
+            "seccion": matricula.seccion_id,
+            "fecha": matricula.fecha.isoformat(),
+            "nota-TOTAL_FORMS": "1",
+            "nota-INITIAL_FORMS": "1",
+            "nota-MIN_NUM_FORMS": "0",
+            "nota-MAX_NUM_FORMS": "1",
+            "nota-0-id": nota.pk,
+            "nota-0-n1": "88",
+            "nota-0-n2": "89",
+            "nota-0-n3": "90",
+        }
+
+        response = self.client.post(url, datos)
+
+        self.assertRedirects(
+            response,
+            reverse("academico:lista", kwargs={"modelo": "matriculas"}),
+        )
+        nota.refresh_from_db()
+        self.assertEqual(nota.n1, Decimal("88.00"))
+        self.assertEqual(nota.promedio, Decimal("89.00"))

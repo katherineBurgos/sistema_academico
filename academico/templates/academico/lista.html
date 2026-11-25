@@ -11,37 +11,46 @@
     <a class="btn btn-rose" href="{% url 'academico:crear' modelo %}">Agregar {{ singular|lower }}</a>
   </div>
 
-  <form method="get" class="search-form mb-4" role="search">
-    <label class="visually-hidden" for="busqueda">Buscar {{ titulo|lower }}</label>
-    <input id="busqueda" class="form-control" type="search" name="q" value="{{ termino }}" placeholder="Buscar...">
-    <button class="btn btn-rose" type="submit">Buscar</button>
-    {% if termino %}<a class="btn btn-outline-secondary" href="{% url 'academico:lista' modelo %}">Limpiar</a>{% endif %}
-  </form>
+  {% include "core/_filtros.html" %}
 
   <div class="card table-card">
     <div class="table-responsive">
       <table class="table align-middle mb-0">
         <thead>
           <tr>
-            {% for campo in campos %}<th scope="col">{{ campo.verbose_name|capfirst }}</th>{% endfor %}
+            {% for encabezado in encabezados %}<th scope="col">{{ encabezado }}</th>{% endfor %}
+            <th scope="col">Detalle</th>
             <th scope="col">Acciones</th>
           </tr>
         </thead>
         <tbody>
-          {% for fila in filas %}
+          {% for objeto, valores in filas %}
             <tr>
-              {% for valor in fila.valores %}<td>{{ valor|default:"—" }}</td>{% endfor %}
+              {% for valor in valores %}<td>{{ valor|default:"—" }}</td>{% endfor %}
+              <td><a class="btn btn-sm btn-outline-secondary" href="{% url 'academico:detalle' modelo objeto.pk %}">Ver</a></td>
               <td class="table-actions">
-                <a class="btn btn-sm btn-outline-primary" href="{% url 'academico:editar' modelo fila.objeto.pk %}">Editar</a>
-                <a class="btn btn-sm btn-outline-danger" href="{% url 'academico:eliminar' modelo fila.objeto.pk %}">Eliminar</a>
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'academico:recurso_pdf' modelo objeto.pk %}" target="_blank" rel="noopener">Ficha PDF</a>
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'academico:editar' modelo objeto.pk %}">Editar</a>
+                <a class="btn btn-sm btn-outline-danger" href="{% url 'academico:eliminar' modelo objeto.pk %}">Eliminar</a>
               </td>
             </tr>
           {% empty %}
-            <tr><td class="empty-state" colspan="{{ campos|length|add:1 }}">No hay registros{% if termino %} que coincidan con la búsqueda{% endif %}.</td></tr>
+            <tr><td class="empty-state" colspan="{{ encabezados|length|add:2 }}">No hay registros que coincidan con los filtros.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
+  {% if is_paginated %}
+    <nav class="pagination-controls" aria-label="Paginación">
+      {% if page_obj.has_previous %}
+        <a class="btn btn-outline-secondary" href="?{{ consulta }}&amp;page={{ page_obj.previous_page_number }}">« Anterior</a>
+      {% endif %}
+      <span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+        <a class="btn btn-outline-secondary" href="?{{ consulta }}&amp;page={{ page_obj.next_page_number }}">Siguiente »</a>
+      {% endif %}
+    </nav>
+  {% endif %}
 </section>
 {% endblock %}

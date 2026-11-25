@@ -1,0 +1,25 @@
+<form method="get" class="filter-panel mb-4" role="search">
+  <div class="filter-fields">
+    {% for campo in filtro_form %}
+      <div class="filter-field">
+        <label class="form-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+        {{ campo }}
+        {% for error in campo.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+  <details class="column-picker">
+    <summary>Elegir columnas</summary>
+    <div class="column-options">
+      {% for ruta, titulo in campos_disponibles %}
+        <label><input type="checkbox" name="campos" value="{{ ruta }}" {% if ruta in campos_seleccionados %}checked{% endif %}> {{ titulo }}</label>
+      {% endfor %}
+    </div>
+  </details>
+  <div class="filter-actions">
+    <button class="btn btn-rose" type="submit">Filtrar</button>
+    <a class="btn btn-outline-secondary" href="{% url 'academico:lista' modelo %}">Limpiar</a>
+    <a class="btn btn-outline-primary" href="?{{ consulta }}&amp;exportar=excel">Excel</a>
+    <a class="btn btn-outline-primary" href="?{{ consulta }}&amp;exportar=pdf" target="_blank" rel="noopener">PDF</a>
+  </div>
+</form>

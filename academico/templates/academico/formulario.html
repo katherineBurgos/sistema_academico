@@ -33,6 +33,26 @@
             {% for error in campo.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
           </div>
         {% endfor %}
+        {% if nota_formset %}
+          <section class="nota-formset">
+            <h2>Notas de la matrícula</h2>
+            {{ nota_formset.management_form }}
+            {% if nota_formset.non_form_errors %}<div class="alert alert-danger">{{ nota_formset.non_form_errors }}</div>{% endif %}
+            {% for nota_form in nota_formset %}
+              {% for hidden in nota_form.hidden_fields %}{{ hidden }}{% endfor %}
+              {% if nota_form.non_field_errors %}<div class="alert alert-danger">{{ nota_form.non_field_errors }}</div>{% endif %}
+              <div class="nota-fields">
+                {% for campo in nota_form.visible_fields %}
+                  <div class="mb-3">
+                    <label class="form-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                    {{ campo }}
+                    {% for error in campo.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+                  </div>
+                {% endfor %}
+              </div>
+            {% endfor %}
+          </section>
+        {% endif %}
         <div class="form-actions">
           <button class="btn btn-rose" type="submit">Guardar</button>
           <a class="btn btn-outline-secondary" href="{% url 'academico:lista' modelo %}">Cancelar</a>

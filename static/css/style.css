@@ -316,6 +316,123 @@ a:hover {
   min-height: 48px;
 }
 
+.filter-panel {
+  padding: 1.15rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 0.9rem;
+  background: var(--glass);
+  box-shadow: 0 8px 24px rgba(201, 77, 123, 0.08);
+}
+
+.filter-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.75rem;
+}
+
+.filter-field .form-label {
+  margin-bottom: 0.25rem;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.filter-field .form-control,
+.filter-field .form-select {
+  min-height: 42px;
+}
+
+.column-picker {
+  margin: 0.85rem 0;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 0.55rem;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.column-picker summary {
+  color: var(--rose-dark);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.column-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding-top: 0.7rem;
+}
+
+.column-options label {
+  font-size: 0.9rem;
+}
+
+.filter-actions,
+.detail-actions,
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.pagination-controls {
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.detail-card {
+  padding: clamp(1.25rem, 3vw, 2rem);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 240px) minmax(0, 1fr);
+  gap: 0.55rem 1rem;
+  margin: 0;
+}
+
+.detail-grid dt {
+  font-weight: 700;
+}
+
+.detail-grid dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.student-photo {
+  display: block;
+  width: min(220px, 100%);
+  max-height: 280px;
+  margin-top: 1.25rem;
+  border-radius: 0.6rem;
+  object-fit: cover;
+}
+
+.detail-related {
+  margin-top: 1rem;
+  padding: 1rem;
+}
+
+.detail-related h2,
+.nota-formset h2 {
+  margin: 0 0 0.8rem;
+  color: var(--rose-dark);
+  font-size: 1.25rem;
+}
+
+.nota-formset {
+  margin: 1.5rem 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+.nota-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
 .table-card {
   overflow: hidden;
 }
@@ -409,6 +526,19 @@ a:hover {
   .crud-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+
+  .detail-grid dd {
+    margin-bottom: 0.6rem;
+  }
+
+  .nota-fields {
+    grid-template-columns: 1fr;
   }
 
   .search-form {

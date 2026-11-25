@@ -4,6 +4,10 @@ Aplicación Django para administrar la estructura universitaria, estudiantes, pr
 
 El comando `poblar_datos` crea datos de demostración: 7 estudiantes, 7 secciones activas, 7 matrículas y 7 notas aprobadas.
 
+## Gestión y reportes
+
+Los módulos académicos incluyen listas paginadas, filtros, selección segura de columnas, exportación a Excel y reportes PDF. Cada registro dispone de una vista de detalle y, cuando aplica, un comprobante PDF con sus datos relacionados. Las matrículas se guardan junto con sus notas, y las validaciones del modelo protegen cupos, periodos y relaciones existentes.
+
 ## Ejecución local
 
 En Windows, desde esta carpeta:

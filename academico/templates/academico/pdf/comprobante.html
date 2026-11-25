@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page { size: A4 portrait; margin: 1.7cm; }
+    body { font-family: Helvetica, sans-serif; font-size: 10pt; color: #35232b; }
+    h1 { color: #a83f67; font-size: 19pt; margin-bottom: 8px; }
+    h2 { color: #a83f67; font-size: 13pt; margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th { background: #a83f67; color: #fff; padding: 6px; text-align: left; }
+    td { border-bottom: 0.5px solid #efdde5; padding: 6px; }
+    .datos td:first-child { width: 30%; font-weight: bold; }
+    .aprobado { color: #147a49; font-weight: bold; }
+    .reprobado { color: #b23a2e; font-weight: bold; }
+    .firma { margin-top: 55px; }
+    .firma td { width: 50%; text-align: center; border: 0; padding: 25px 20px 0; }
+    .logo { max-width: 90px; max-height: 65px; }
+    .pie { margin-top: 22px; color: #7a6570; font-size: 8pt; }
+  </style>
+</head>
+<body>
+  {% if logo_url %}<img class="logo" src="{{ logo_url }}" alt="Logo">{% endif %}
+  {% if foto_url %}<img class="logo" src="{{ foto_url }}" alt="Foto del estudiante">{% endif %}
+  <h1>{{ titulo }}</h1>
+  <p>{{ subtitulo }}</p>
+  <table class="datos">
+    {% for etiqueta, valor in datos %}<tr><td>{{ etiqueta }}</td><td>{{ valor|default:"—" }}</td></tr>{% endfor %}
+  </table>
+  {% for tabla in tablas_relacionadas %}
+    <h2>{{ tabla.titulo }}</h2>
+    <table repeat="1">
+      <thead><tr>{% for encabezado in tabla.encabezados %}<th>{{ encabezado }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for fila in tabla.filas %}<tr>{% for valor in fila %}<td>{{ valor|default:"—" }}</td>{% endfor %}</tr>{% empty %}
+        <tr><td colspan="{{ tabla.encabezados|length }}">Sin registros relacionados.</td></tr>
+      {% endfor %}</tbody>
+    </table>
+  {% endfor %}
+  {% if modelo == "matriculas" %}
+    <p>Se aprueba con 70/100.</p>
+  {% endif %}
+  <table class="firma"><tr><td>_____________________________<br>Secretaría</td><td>_____________________________<br>Estudiante</td></tr></table>
+  <p class="pie">Generado el {{ fecha|date:"d/m/Y H:i" }} por {{ usuario.username }} · Sistema Académico</p>
+</body>
+</html>

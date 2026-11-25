@@ -47,6 +47,10 @@ class Universidad(ModeloBase):
     def __str__(self):
         return self.siglas
 
+    @property
+    def total_facultades(self):
+        return self.facultades.count()
+
 
 class Facultad(ModeloBase):
     universidad = models.ForeignKey(Universidad, on_delete=models.PROTECT, related_name="facultades")   # 1:N

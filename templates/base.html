@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Sistema Académico{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  {% load static %}
+  <link href="{% static 'css/style.css' %}?v=9" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark site-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="{% url 'academico:inicio' %}">Sistema Académico</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="menu">
+      {% if user.is_authenticated %}
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'academico:inicio' %}">Inicio</a>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Estructura</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'academico:lista' 'universidades' %}">Universidades</a></li>
+            <li><a class="dropdown-item" href="{% url 'academico:lista' 'facultades' %}">Facultades</a></li>
+            <li><a class="dropdown-item" href="{% url 'academico:lista' 'carreras' %}">Carreras</a></li>
+          </ul>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Catálogo</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'academico:lista' 'semestres' %}">Semestres</a></li>
+            <li><a class="dropdown-item" href="{% url 'academico:lista' 'periodos' %}">Periodos</a></li>
+            <li><a class="dropdown-item" href="{% url 'academico:lista' 'cursos' %}">Cursos</a></li>
+          </ul>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Personas</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'academico:lista' 'estudiantes' %}">Estudiantes</a></li>
+            <li><a class="dropdown-item" href="{% url 'academico:lista' 'profesores' %}">Profesores</a></li>
+          </ul>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Académico</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'academico:lista' 'secciones' %}">Secciones</a></li>
+            <li><a class="dropdown-item" href="{% url 'academico:lista' 'matriculas' %}">Matrículas</a></li>
+            <li><a class="dropdown-item" href="{% url 'academico:lista' 'notas' %}">Notas</a></li>
+          </ul>
+        </li>
+      </ul>
+      <span class="navbar-text me-3">{{ user.username }}</span>
+      <form method="post" action="{% url 'logout' %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-light btn-sm">Cerrar sesión</button>
+      </form>
+      {% else %}
+      <div class="ms-auto d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-light btn-sm" href="{% url 'login' %}">Iniciar sesión</a>
+        <a class="btn btn-light btn-sm" href="{% url 'registro' %}">Crear cuenta</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<main class="container page-shell">
+  {% if messages %}
+    {% for mensaje in messages %}
+      <div class="alert alert-{{ mensaje.tags|default:'info' }} alert-dismissible fade show">
+        {{ mensaje }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+  {% block contenido %}{% endblock %}
+</main>
+
+<footer class="site-footer">
+  <p>Sistema Académico · Gestión de estudiantes, matrículas y notas</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block titulo %}{% if objeto %}Editar{% else %}Agregar{% endif %} {{ titulo|lower }} · Sistema Académico{% endblock %}
+
+{% block contenido %}
+<section class="crud-page">
+  <div class="crud-heading">
+    <div>
+      <span class="eyebrow">GESTIÓN ACADÉMICA</span>
+      <h1>{% if objeto %}Editar{% else %}Agregar{% endif %} {{ titulo|lower }}</h1>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'academico:lista' modelo %}">Volver a {{ titulo|lower }}</a>
+  </div>
+
+  <div class="card form-card">
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% if formulario.non_field_errors %}
+          <div class="alert alert-danger">{{ formulario.non_field_errors }}</div>
+        {% endif %}
+        {% for campo in formulario %}
+          <div class="mb-3">
+            {% if campo.field.widget.input_type == "checkbox" %}
+              <div class="form-check">
+                {{ campo }}
+                <label class="form-check-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+              </div>
+            {% else %}
+              <label class="form-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+              {{ campo }}
+            {% endif %}
+            {% if campo.help_text %}<div class="form-text">{{ campo.help_text }}</div>{% endif %}
+            {% for error in campo.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+        {% endfor %}
+        <div class="form-actions">
+          <button class="btn btn-rose" type="submit">Guardar</button>
+          <a class="btn btn-outline-secondary" href="{% url 'academico:lista' modelo %}">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}

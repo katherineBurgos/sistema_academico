@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block titulo %}Inicio · Sistema Académico{% endblock %}
+
+{% block contenido %}
+<section class="welcome-panel">
+  <span class="eyebrow">SISTEMA ACADÉMICO</span>
+  <h1>Bienvenido, {{ user.username }}</h1>
+  <p>
+    {% if periodo_activo %}Periodo activo: <strong>{{ periodo_activo }}</strong>{% else %}No hay un periodo activo.{% endif %}
+  </p>
+  <a class="btn btn-rose" href="#resumen">Ver resumen</a>
+</section>
+
+<section class="row g-3 metric-grid" id="resumen" aria-label="Resumen académico">
+  <div class="col-sm-6 col-lg-3">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="metric-label">Estudiantes</div>
+      <div class="metric-value">{{ total_estudiantes }}</div>
+    </div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="metric-label">Secciones del periodo activo</div>
+      <div class="metric-value">{{ total_secciones }}</div>
+    </div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="metric-label">Matrículas</div>
+      <div class="metric-value">{{ total_matriculas }}</div>
+    </div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="metric-label">Aprobados</div>
+      <div class="metric-value">{{ total_aprobados }}</div>
+      <div class="metric-detail">{{ porcentaje_aprobados }}% de las notas</div>
+    </div></div>
+  </div>
+</section>
+{% endblock %}

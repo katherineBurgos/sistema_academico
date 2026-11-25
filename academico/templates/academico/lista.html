@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }} · Sistema Académico{% endblock %}
+
+{% block contenido %}
+<section class="crud-page">
+  <div class="crud-heading">
+    <div>
+      <span class="eyebrow">GESTIÓN ACADÉMICA</span>
+      <h1>{{ titulo }}</h1>
+    </div>
+    <a class="btn btn-rose" href="{% url 'academico:crear' modelo %}">Agregar {{ singular|lower }}</a>
+  </div>
+
+  <form method="get" class="search-form mb-4" role="search">
+    <label class="visually-hidden" for="busqueda">Buscar {{ titulo|lower }}</label>
+    <input id="busqueda" class="form-control" type="search" name="q" value="{{ termino }}" placeholder="Buscar...">
+    <button class="btn btn-rose" type="submit">Buscar</button>
+    {% if termino %}<a class="btn btn-outline-secondary" href="{% url 'academico:lista' modelo %}">Limpiar</a>{% endif %}
+  </form>
+
+  <div class="card table-card">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            {% for campo in campos %}<th scope="col">{{ campo.verbose_name|capfirst }}</th>{% endfor %}
+            <th scope="col">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in filas %}
+            <tr>
+              {% for valor in fila.valores %}<td>{{ valor|default:"—" }}</td>{% endfor %}
+              <td class="table-actions">
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'academico:editar' modelo fila.objeto.pk %}">Editar</a>
+                <a class="btn btn-sm btn-outline-danger" href="{% url 'academico:eliminar' modelo fila.objeto.pk %}">Eliminar</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty-state" colspan="{{ campos|length|add:1 }}">No hay registros{% if termino %} que coincidan con la búsqueda{% endif %}.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

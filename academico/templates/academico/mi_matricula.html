@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block titulo %}Mi matrícula · Sistema Académico{% endblock %}
+
+{% block contenido %}
+<section class="crud-page">
+  <div class="crud-heading">
+    <div>
+      <span class="eyebrow">AUTOSERVICIO ESTUDIANTIL</span>
+      <h1>Mi matrícula</h1>
+    </div>
+  </div>
+
+  {% if not estudiante %}
+    <div class="alert alert-info">
+      Esta cuenta aún no está vinculada a un estudiante. Solicita a administración que la asocie a tu registro para poder matricularte.
+    </div>
+  {% else %}
+    <h2>Mis asignaturas del periodo activo</h2>
+    <div class="card table-card mb-4">
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead><tr><th>Asignatura</th><th>Sección</th><th>Profesor</th><th>Horario</th></tr></thead>
+          <tbody>
+            {% for matricula in matriculas %}
+              <tr>
+                <td>{{ matricula.seccion.curso }}</td>
+                <td>{{ matricula.seccion.paralelo }} · {{ matricula.seccion.get_jornada_display }}</td>
+                <td>{{ matricula.seccion.profesor }}</td>
+                <td>
+                  {% for horario in matricula.seccion.horarios.all %}
+                    {{ horario }}{% if horario.aula %} · {{ horario.aula }}{% endif %}<br>
+                  {% empty %}
+                    Sin horario asignado
+                  {% endfor %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td class="empty-state" colspan="4">No tienes asignaturas en el periodo activo.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <h2>Asignaturas disponibles para tu carrera</h2>
+    <div class="row g-3">
+      {% for opcion in opciones %}
+        <div class="col-lg-6">
+          <article class="card h-100">
+            <div class="card-body">
+              <h3 class="h5">{{ opcion.seccion.curso }}</h3>
+              <p class="mb-1">Sección {{ opcion.seccion.paralelo }} · {{ opcion.seccion.get_jornada_display }} · {{ opcion.seccion.periodo }}</p>
+              <p class="mb-2">Profesor: {{ opcion.seccion.profesor }}</p>
+              <ul>
+                {% for horario in opcion.seccion.horarios.all %}
+                  <li>{{ horario }}{% if horario.aula %} · Aula {{ horario.aula }}{% endif %}</li>
+                {% endfor %}
+              </ul>
+              <p>Cupos: {{ opcion.seccion.inscritos }}/{{ opcion.seccion.cupo }}</p>
+              {% if opcion.choque_horario %}
+                <p class="text-danger">Se cruza con otra asignatura que ya tienes.</p>
+              {% elif not opcion.tiene_cupo %}
+                <p class="text-danger">No hay cupos disponibles.</p>
+              {% else %}
+                <form method="post" action="{% url 'academico:mi_matricula' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="seccion" value="{{ opcion.seccion.pk }}">
+                  <button class="btn btn-rose" type="submit">Matricularme</button>
+                </form>
+              {% endif %}
+            </div>
+          </article>
+        </div>
+      {% empty %}
+        <div class="col-12">
+          <div class="alert alert-info">No hay asignaturas con horario publicado para tu carrera en el periodo activo.</div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

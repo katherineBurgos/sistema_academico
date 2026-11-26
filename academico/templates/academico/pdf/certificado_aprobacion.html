@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page { size: A4 portrait; margin: 2cm; }
+    body { font-family: Helvetica, sans-serif; font-size: 11pt; color: #35232b; }
+    h1 { margin: 16px 0; color: #a83f67; text-align: center; font-size: 22pt; }
+    p { line-height: 1.6; }
+    table { width: 100%; margin-top: 20px; border-collapse: collapse; }
+    td { padding: 8px; border-bottom: 0.5px solid #efdde5; }
+    td:first-child { width: 32%; font-weight: bold; }
+    .logo { max-width: 100px; max-height: 70px; }
+    .presentacion { margin-top: 35px; text-align: center; font-size: 13pt; }
+    .verificacion { margin-top: 28px; text-align: center; font-size: 9pt; }
+    .qr { width: 110px; height: 110px; }
+    .firma { margin-top: 45px; text-align: center; }
+  </style>
+</head>
+<body>
+  {% if logo_url %}<img class="logo" src="{{ logo_url }}" alt="Logo institucional">{% endif %}
+  <h1>Certificado de aprobación</h1>
+  <p class="presentacion">
+    Se certifica que <strong>{{ certificado.nombre_estudiante }}</strong>,
+    con identificación <strong>{{ certificado.cedula_estudiante }}</strong>,
+    aprobó el curso indicado a continuación.
+  </p>
+  <table>
+    <tr><td>Curso</td><td>{{ certificado.curso }}</td></tr>
+    <tr><td>Periodo académico</td><td>{{ certificado.periodo }}</td></tr>
+    <tr><td>Promedio final</td><td>{{ certificado.promedio }} / 100</td></tr>
+    <tr><td>Fecha de emisión</td><td>{{ certificado.fecha_emision|date:"d/m/Y H:i" }}</td></tr>
+  </table>
+  <div class="verificacion">
+    <img class="qr" src="{{ qr_url }}" alt="Código QR de verificación">
+    <p>Escanee el código para validar este certificado.<br>
+      Código: {{ certificado.codigo }}</p>
+  </div>
+  <p class="firma">_____________________________<br>Secretaría académica</p>
+</body>
+</html>

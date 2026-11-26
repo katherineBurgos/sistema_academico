@@ -17,7 +17,7 @@ body {
   flex-direction: column;
   color: var(--ink);
   background-color: #fff8fb;
-  background-image: url("../images/fondo-tulipanes-corazones.png");
+  background-image: url("../images/fondo-estrellas-rosado.png?v=2");
   background-position: center bottom;
   background-repeat: repeat-y;
   background-size: cover;

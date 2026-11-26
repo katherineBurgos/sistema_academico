@@ -4,7 +4,9 @@
 #        → personas (Profesor, Estudiante) → oferta (Seccion) → proceso (Matricula → Nota)
 # =====================================================================
 from decimal import Decimal
+import uuid
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -21,8 +23,8 @@ VALIDAR_NOTA = [MinValueValidator(Decimal("0")), MaxValueValidator(NOTA_MAXIMA)]
 # OPCIONES FIJAS (choices)
 # ---------------------------------------------------------------------
 class Jornada(models.TextChoices):
-    DIURNA = "diurna", "Diurna"
-    NOCTURNA = "nocturna", "Nocturna"
+    VESPERTINA = "vespertina", "Vespertino"
+    NOCTURNA = "nocturna", "Nocturno"
 
 
 class EstadoNota(models.TextChoices):
@@ -162,6 +164,14 @@ class Estudiante(ModeloBase):
     telefono = models.CharField("Teléfono", max_length=15, blank=True)
     fecha_nacimiento = models.DateField("Fecha de nacimiento", null=True, blank=True)
     carrera = models.ForeignKey(Carrera, on_delete=models.PROTECT, related_name="estudiantes")   # 1:N
+    cuenta = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="perfil_estudiante",
+        verbose_name="Cuenta de acceso",
+    )
     foto = models.ImageField(upload_to="estudiantes/", blank=True)
 
     class Meta:
@@ -185,7 +195,11 @@ class Seccion(ModeloBase):
     periodo = models.ForeignKey(Periodo, on_delete=models.PROTECT, related_name="secciones")
     profesor = models.ForeignKey(Profesor, on_delete=models.PROTECT, related_name="secciones")
     paralelo = models.CharField(max_length=2, default="A")            # A, B, C...
-    jornada = models.CharField(max_length=10, choices=Jornada.choices, default=Jornada.DIURNA)
+    jornada = models.CharField(
+        max_length=10,
+        choices=Jornada.choices,
+        default=Jornada.VESPERTINA,
+    )
     cupo = models.PositiveSmallIntegerField(default=30)
     # N:M con Estudiante A TRAVÉS de Matricula (la tabla intermedia la escribimos nosotros: tiene datos propios)
     estudiantes = models.ManyToManyField("Estudiante", through="Matricula", related_name="secciones")
@@ -204,6 +218,87 @@ class Seccion(ModeloBase):
     @property
     def inscritos(self):
         return self.matriculas.count()
+
+    @property
+    def horario_resumen(self):
+        bloques = [
+            f"{horario} {horario.aula}".strip()
+            for horario in self.horarios.all()
+        ]
+        return "; ".join(bloques) or "Sin horario asignado"
+
+    def tiene_choque_horario(self, estudiante, matricula_id=None):
+        otras_matriculas = Matricula.objects.filter(
+            estudiante=estudiante,
+            seccion__periodo_id=self.periodo_id,
+        ).exclude(seccion_id=self.pk)
+        if matricula_id:
+            otras_matriculas = otras_matriculas.exclude(pk=matricula_id)
+        otras_secciones = otras_matriculas.values_list("seccion_id", flat=True)
+        horarios_actuales = HorarioSeccion.objects.filter(seccion_id__in=otras_secciones)
+        for horario in self.horarios.all():
+            if horarios_actuales.filter(
+                dia=horario.dia,
+                hora_inicio__lt=horario.hora_fin,
+                hora_fin__gt=horario.hora_inicio,
+            ).exists():
+                return True
+        return False
+
+
+class DiaSemana(models.IntegerChoices):
+    LUNES = 1, "Lunes"
+    MARTES = 2, "Martes"
+    MIERCOLES = 3, "Miércoles"
+    JUEVES = 4, "Jueves"
+    VIERNES = 5, "Viernes"
+    SABADO = 6, "Sábado"
+    DOMINGO = 7, "Domingo"
+
+
+class HorarioSeccion(ModeloBase):
+    seccion = models.ForeignKey(
+        Seccion,
+        on_delete=models.CASCADE,
+        related_name="horarios",
+    )
+    dia = models.PositiveSmallIntegerField(choices=DiaSemana.choices)
+    hora_inicio = models.TimeField("Hora de inicio")
+    hora_fin = models.TimeField("Hora de fin")
+    aula = models.CharField(max_length=80, blank=True)
+
+    class Meta:
+        verbose_name = "Horario de asignatura"
+        verbose_name_plural = "Horarios de asignaturas"
+        ordering = ["dia", "hora_inicio"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["seccion", "dia", "hora_inicio"],
+                name="horario_unico_por_seccion_dia_inicio",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.get_dia_display()} {self.hora_inicio:%H:%M}-"
+            f"{self.hora_fin:%H:%M}"
+        )
+
+    def clean(self):
+        if self.hora_inicio and self.hora_fin and self.hora_inicio >= self.hora_fin:
+            raise ValidationError({
+                "hora_fin": "La hora de fin debe ser posterior a la hora de inicio."
+            })
+        if not self.seccion_id or not self.dia or not self.hora_inicio or not self.hora_fin:
+            return
+        horarios_solapados = type(self).objects.filter(
+            seccion_id=self.seccion_id,
+            dia=self.dia,
+            hora_inicio__lt=self.hora_fin,
+            hora_fin__gt=self.hora_inicio,
+        ).exclude(pk=self.pk)
+        if horarios_solapados.exists():
+            raise ValidationError("Los bloques de una sección no pueden superponerse.")
 
 
 # =====================================================================
@@ -234,6 +329,10 @@ class Matricula(ModeloBase):
         ocupados = self.seccion.matriculas.exclude(pk=self.pk).count()
         if ocupados >= self.seccion.cupo:
             raise ValidationError(f"La sección no tiene cupo ({self.seccion.cupo} estudiantes).")
+        if self.seccion.tiene_choque_horario(self.estudiante, self.pk):
+            raise ValidationError({
+                "seccion": "El horario se superpone con otra asignatura de este periodo."
+            })
 
 
 class Nota(ModeloBase):
@@ -257,3 +356,145 @@ class Nota(ModeloBase):
         self.promedio = ((self.n1 + self.n2 + self.n3) / 3).quantize(Decimal("0.01"))
         self.estado = EstadoNota.APROBADO if self.promedio >= NOTA_MINIMA_APROBACION else EstadoNota.REPROBADO
         super().save(*args, **kwargs)                            # ahora sí: INSERT o UPDATE
+
+
+class AsignacionTutoria(ModeloBase):
+    estudiante = models.ForeignKey(
+        Estudiante,
+        on_delete=models.PROTECT,
+        related_name="asignaciones_tutoria",
+    )
+    tutor = models.ForeignKey(
+        Profesor,
+        on_delete=models.PROTECT,
+        related_name="asignaciones_tutoria",
+    )
+    fecha_inicio = models.DateField("Fecha de inicio", default=timezone.localdate)
+    fecha_fin = models.DateField("Fecha de fin", null=True, blank=True)
+    activa = models.BooleanField(default=True)
+    observaciones = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Asignación de tutoría"
+        verbose_name_plural = "Asignaciones de tutoría"
+        ordering = ["-fecha_inicio", "estudiante"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["estudiante"],
+                condition=models.Q(activa=True),
+                name="una_tutoria_activa_por_estudiante",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.estudiante} · {self.tutor}"
+
+    def clean(self):
+        if self.fecha_fin and self.fecha_inicio and self.fecha_fin < self.fecha_inicio:
+            raise ValidationError({
+                "fecha_fin": "La fecha de fin no puede ser anterior a la fecha de inicio."
+            })
+        if self.activa and self.fecha_fin:
+            raise ValidationError({
+                "fecha_fin": "Una asignación activa no puede tener fecha de fin."
+            })
+        if self.activa and self.estudiante_id:
+            asignaciones_activas = type(self).objects.filter(
+                estudiante_id=self.estudiante_id,
+                activa=True,
+            ).exclude(pk=self.pk)
+            if asignaciones_activas.exists():
+                raise ValidationError({
+                    "estudiante": "El estudiante ya tiene una asignación de tutoría activa."
+                })
+
+
+class EstadoSesionTutoria(models.TextChoices):
+    PROGRAMADA = "programada", "Programada"
+    REALIZADA = "realizada", "Realizada"
+    CANCELADA = "cancelada", "Cancelada"
+
+
+class ModalidadTutoria(models.TextChoices):
+    PRESENCIAL = "presencial", "Presencial"
+    VIRTUAL = "virtual", "Virtual"
+
+
+class SesionTutoria(ModeloBase):
+    asignacion = models.ForeignKey(
+        AsignacionTutoria,
+        on_delete=models.PROTECT,
+        related_name="sesiones",
+    )
+    fecha = models.DateField(default=timezone.localdate)
+    tema = models.CharField(max_length=150)
+    modalidad = models.CharField(
+        max_length=12,
+        choices=ModalidadTutoria.choices,
+        default=ModalidadTutoria.PRESENCIAL,
+    )
+    duracion_minutos = models.PositiveSmallIntegerField(
+        "Duración (minutos)",
+        default=60,
+        validators=[MinValueValidator(15), MaxValueValidator(240)],
+    )
+    estado = models.CharField(
+        max_length=12,
+        choices=EstadoSesionTutoria.choices,
+        default=EstadoSesionTutoria.PROGRAMADA,
+    )
+    observaciones = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Sesión de tutoría"
+        verbose_name_plural = "Sesiones de tutoría"
+        ordering = ["-fecha", "asignacion"]
+
+    def __str__(self):
+        return f"{self.fecha} · {self.asignacion.estudiante} · {self.tema}"
+
+    def clean(self):
+        if not self.asignacion_id or not self.fecha:
+            return
+        if self.fecha < self.asignacion.fecha_inicio:
+            raise ValidationError({
+                "fecha": "La sesión no puede ser anterior al inicio de la asignación."
+            })
+        if self.asignacion.fecha_fin and self.fecha > self.asignacion.fecha_fin:
+            raise ValidationError({
+                "fecha": "La sesión no puede ser posterior al fin de la asignación."
+            })
+
+
+class CertificadoAprobacion(ModeloBase):
+    matricula = models.ForeignKey(
+        Matricula,
+        on_delete=models.PROTECT,
+        related_name="certificados_aprobacion",
+    )
+    codigo = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    nombre_estudiante = models.CharField(max_length=161)
+    cedula_estudiante = models.CharField(max_length=10)
+    curso = models.CharField(max_length=200)
+    periodo = models.CharField(max_length=30)
+    promedio = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        validators=VALIDAR_NOTA,
+    )
+    fecha_emision = models.DateTimeField(default=timezone.now)
+    qr = models.ImageField(upload_to="certificados/qr/", blank=True)
+
+    class Meta:
+        verbose_name = "Certificado de aprobación"
+        verbose_name_plural = "Certificados de aprobación"
+        ordering = ["-fecha_emision"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["matricula", "promedio"],
+                name="certificado_unico_por_matricula_y_promedio",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Certificado {self.codigo} · {self.nombre_estudiante}"

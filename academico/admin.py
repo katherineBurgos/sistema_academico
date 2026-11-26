@@ -1,8 +1,9 @@
 from django.contrib import admin
 
 from .models import (
-    Carrera, Curso, Estudiante, Facultad, Matricula, Nota, Periodo,
-    Profesor, Seccion, Semestre, Universidad,
+    AsignacionTutoria, Carrera, CertificadoAprobacion, Curso, Estudiante,
+    Facultad, HorarioSeccion, Matricula, Nota, Periodo, Profesor, Seccion,
+    Semestre, SesionTutoria, Universidad,
 )
 
 
@@ -61,8 +62,8 @@ class ProfesorAdmin(BaseAdmin):
 
 @admin.register(Estudiante)
 class EstudianteAdmin(BaseAdmin):
-    list_display = ("apellidos", "nombres", "cedula", "carrera")
-    search_fields = ("cedula", "apellidos", "nombres")
+    list_display = ("apellidos", "nombres", "cedula", "carrera", "cuenta")
+    search_fields = ("cedula", "apellidos", "nombres", "cuenta__username")
     list_filter = ("carrera",)
 
 
@@ -71,6 +72,13 @@ class SeccionAdmin(BaseAdmin):
     list_display = ("curso", "paralelo", "jornada", "periodo", "profesor", "cupo", "inscritos")
     list_filter = ("periodo", "jornada")
     search_fields = ("curso__codigo", "curso__nombre")
+
+
+@admin.register(HorarioSeccion)
+class HorarioSeccionAdmin(BaseAdmin):
+    list_display = ("seccion", "dia", "hora_inicio", "hora_fin", "aula")
+    list_filter = ("dia", "seccion__periodo", "seccion__jornada")
+    search_fields = ("seccion__curso__codigo", "seccion__curso__nombre", "aula")
 
 
 class NotaInline(admin.StackedInline):             # la Nota se edita dentro de la Matrícula
@@ -101,3 +109,34 @@ class NotaAdmin(BaseAdmin):
     list_display = ("matricula", "n1", "n2", "n3", "promedio", "estado")
     list_filter = ("estado",)
     readonly_fields = BaseAdmin.readonly_fields + ("promedio", "estado")
+
+
+@admin.register(AsignacionTutoria)
+class AsignacionTutoriaAdmin(BaseAdmin):
+    list_display = ("estudiante", "tutor", "fecha_inicio", "fecha_fin", "activa")
+    list_filter = ("activa", "tutor")
+    search_fields = ("estudiante__cedula", "estudiante__apellidos", "tutor__apellidos")
+
+
+@admin.register(SesionTutoria)
+class SesionTutoriaAdmin(BaseAdmin):
+    list_display = ("asignacion", "fecha", "tema", "modalidad", "estado")
+    list_filter = ("modalidad", "estado")
+    search_fields = ("asignacion__estudiante__apellidos", "tema")
+
+
+@admin.register(CertificadoAprobacion)
+class CertificadoAprobacionAdmin(admin.ModelAdmin):
+    list_display = ("codigo", "nombre_estudiante", "curso", "promedio", "fecha_emision")
+    search_fields = ("codigo", "nombre_estudiante", "cedula_estudiante", "curso")
+    readonly_fields = (
+        "matricula", "codigo", "nombre_estudiante", "cedula_estudiante",
+        "curso", "periodo", "promedio", "fecha_emision", "qr", "user",
+        "fecha_creacion", "fecha_modificacion",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

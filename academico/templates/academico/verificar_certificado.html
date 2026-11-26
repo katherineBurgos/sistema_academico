@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block titulo %}Verificar certificado · Sistema Académico{% endblock %}
+
+{% block contenido %}
+<section class="crud-page">
+  <div class="card detail-card">
+    <span class="eyebrow">VERIFICACIÓN PÚBLICA</span>
+    <h1>Certificado válido</h1>
+    <p>El código QR corresponde a un certificado de aprobación emitido por el Sistema Académico.</p>
+    <dl class="detail-grid">
+      <dt>Estudiante</dt><dd>{{ certificado.nombre_estudiante }}</dd>
+      <dt>Curso</dt><dd>{{ certificado.curso }}</dd>
+      <dt>Periodo</dt><dd>{{ certificado.periodo }}</dd>
+      <dt>Promedio</dt><dd>{{ certificado.promedio }}</dd>
+      <dt>Fecha de emisión</dt><dd>{{ certificado.fecha_emision|date:"d/m/Y H:i" }}</dd>
+      <dt>Código</dt><dd>{{ certificado.codigo }}</dd>
+    </dl>
+  </div>
+</section>
+{% endblock %}

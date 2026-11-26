@@ -4,8 +4,9 @@ from django.db.models import Q
 from django.forms import inlineformset_factory, modelform_factory
 
 from .models import (
-    Carrera, Curso, EstadoNota, Estudiante, Facultad, Jornada, Matricula,
-    Nota, Periodo, Profesor, Seccion, Semestre, Universidad,
+    AsignacionTutoria, Carrera, Curso, EstadoNota, Estudiante,
+    Facultad, HorarioSeccion, Jornada, Matricula, Nota, Periodo, Profesor,
+    Seccion, Semestre, SesionTutoria, Universidad,
 )
 
 
@@ -51,9 +52,52 @@ class CarreraForm(forms.ModelForm):
         return self.cleaned_data["codigo"].strip().upper()
 
 
+class AsignacionTutoriaForm(forms.ModelForm):
+    class Meta:
+        model = AsignacionTutoria
+        fields = (
+            "estudiante", "tutor", "fecha_inicio", "fecha_fin", "activa",
+            "observaciones",
+        )
+        widgets = {
+            "fecha_inicio": forms.DateInput(attrs={"type": "date"}),
+            "fecha_fin": forms.DateInput(attrs={"type": "date"}),
+        }
+
+
+class SesionTutoriaForm(forms.ModelForm):
+    class Meta:
+        model = SesionTutoria
+        fields = (
+            "asignacion", "fecha", "tema", "modalidad", "duracion_minutos",
+            "estado", "observaciones",
+        )
+        widgets = {"fecha": forms.DateInput(attrs={"type": "date"})}
+
+
+class HorarioSeccionForm(forms.ModelForm):
+    class Meta:
+        model = HorarioSeccion
+        fields = ("seccion", "dia", "hora_inicio", "hora_fin", "aula")
+        widgets = {
+            "hora_inicio": forms.TimeInput(attrs={"type": "time"}, format="%H:%M"),
+            "hora_fin": forms.TimeInput(attrs={"type": "time"}, format="%H:%M"),
+        }
+
+
 class SeccionConCupoField(forms.ModelChoiceField):
     def label_from_instance(self, seccion):
-        return f"{seccion} ({seccion.inscritos}/{seccion.cupo})"
+        bloques = []
+        for horario in seccion.horarios.all():
+            bloque = (
+                f"{horario.get_dia_display()} "
+                f"{horario.hora_inicio:%H:%M}-{horario.hora_fin:%H:%M}"
+            )
+            if horario.aula:
+                bloque += f" · {horario.aula}"
+            bloques.append(bloque)
+        texto_horario = "; ".join(bloques) or "Sin horario asignado"
+        return f"{seccion} · {texto_horario} ({seccion.inscritos}/{seccion.cupo})"
 
 
 class MatriculaForm(forms.ModelForm):
@@ -76,7 +120,7 @@ class MatriculaForm(forms.ModelForm):
             )
         self.fields["seccion"].queryset = secciones.select_related(
             "curso", "periodo", "profesor"
-        )
+        ).prefetch_related("horarios")
 
 
 NOTA_WIDGETS = {

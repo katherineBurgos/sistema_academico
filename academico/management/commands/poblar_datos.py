@@ -7,8 +7,8 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from academico.models import (
-    Carrera, Curso, EstadoNota, Estudiante, Facultad, Jornada, Matricula, Nota,
-    Periodo, Profesor, Seccion, Semestre, Universidad,
+    Carrera, Curso, DiaSemana, EstadoNota, Estudiante, Facultad, HorarioSeccion,
+    Jornada, Matricula, Nota, Periodo, Profesor, Seccion, Semestre, Universidad,
 )
 
 NOMBRES = ["Ana", "Luis", "Eva", "Carlos", "María", "José", "Sofía"]
@@ -17,9 +17,9 @@ TOTAL_DEMO = 7
 CEDULAS_DEMO_SOBRANTES = tuple(f"09{i:08d}" for i in range(TOTAL_DEMO + 1, 12))
 SECCIONES_DEMO_SOBRANTES = (
     ("RED-101", "B", Jornada.NOCTURNA),
-    ("RED-102", "A", Jornada.DIURNA),
+    ("RED-102", "A", Jornada.VESPERTINA),
     ("RED-102", "B", Jornada.NOCTURNA),
-    ("RED-201", "A", Jornada.DIURNA),
+    ("RED-201", "A", Jornada.VESPERTINA),
 )
 
 
@@ -71,18 +71,60 @@ class Command(BaseCommand):
 
         secciones = []
         for codigo, prof, paralelo, jornada, cupo in [
-            ("SOF-101", vera, "A", Jornada.DIURNA, 30),
+            ("SOF-101", vera, "A", Jornada.VESPERTINA, 30),
             ("SOF-101", leon, "B", Jornada.NOCTURNA, 25),
-            ("SOF-102", vera, "A", Jornada.DIURNA, 30),
+            ("SOF-102", vera, "A", Jornada.VESPERTINA, 30),
             ("SOF-102", leon, "B", Jornada.NOCTURNA, 25),
-            ("SOF-201", vera, "A", Jornada.DIURNA, 30),
+            ("SOF-201", vera, "A", Jornada.VESPERTINA, 30),
             ("SOF-201", leon, "B", Jornada.NOCTURNA, 25),
-            ("RED-101", leon, "A", Jornada.DIURNA, 30),
+            ("RED-101", leon, "A", Jornada.VESPERTINA, 30),
         ]:
             sec, _ = Seccion.objects.get_or_create(
                 curso=cursos[codigo], periodo=periodo, paralelo=paralelo, jornada=jornada,
                 defaults={"profesor": prof, "cupo": cupo})
             secciones.append(sec)
+
+        horarios_demo = {
+                ("SOF-101", "A"): (
+                    (DiaSemana.LUNES, datetime.time(14, 0), datetime.time(16, 0), "A-101"),
+                    (DiaSemana.MIERCOLES, datetime.time(14, 0), datetime.time(16, 0), "A-101"),
+                ),
+                ("SOF-101", "B"): (
+                    (DiaSemana.MARTES, datetime.time(18, 0), datetime.time(20, 0), "B-201"),
+                    (DiaSemana.JUEVES, datetime.time(18, 0), datetime.time(20, 0), "B-201"),
+                ),
+                ("SOF-102", "A"): (
+                    (DiaSemana.LUNES, datetime.time(16, 0), datetime.time(18, 0), "A-102"),
+                    (DiaSemana.MIERCOLES, datetime.time(16, 0), datetime.time(18, 0), "A-102"),
+                ),
+                ("SOF-102", "B"): (
+                    (DiaSemana.MARTES, datetime.time(20, 0), datetime.time(22, 0), "B-202"),
+                    (DiaSemana.JUEVES, datetime.time(20, 0), datetime.time(22, 0), "B-202"),
+                ),
+                ("SOF-201", "A"): (
+                    (DiaSemana.VIERNES, datetime.time(14, 0), datetime.time(16, 0), "A-201"),
+                    (DiaSemana.SABADO, datetime.time(14, 0), datetime.time(16, 0), "A-201"),
+                ),
+                ("SOF-201", "B"): (
+                    (DiaSemana.VIERNES, datetime.time(18, 0), datetime.time(20, 0), "B-203"),
+                    (DiaSemana.SABADO, datetime.time(18, 0), datetime.time(20, 0), "B-203"),
+                ),
+                ("RED-101", "A"): (
+                    (DiaSemana.LUNES, datetime.time(14, 0), datetime.time(16, 0), "LAB-1"),
+                    (DiaSemana.MIERCOLES, datetime.time(14, 0), datetime.time(16, 0), "LAB-1"),
+                ),
+        }
+        for seccion in secciones:
+                for dia, inicio, fin, aula in horarios_demo.get(
+                    (seccion.curso.codigo, seccion.paralelo),
+                    (),
+                ):
+                    HorarioSeccion.objects.get_or_create(
+                        seccion=seccion,
+                        dia=dia,
+                        hora_inicio=inicio,
+                        defaults={"hora_fin": fin, "aula": aula},
+                    )
 
         # Los estudiantes se distribuyen entre Software y Redes.
         estudiantes = []

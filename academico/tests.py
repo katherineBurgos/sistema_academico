@@ -2,14 +2,16 @@ from decimal import Decimal
 from io import BytesIO
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 from openpyxl import load_workbook
 
 from .models import (
-    Carrera, Curso, EstadoNota, Estudiante, Facultad, Jornada, Matricula, Nota,
-    Periodo, Profesor, Seccion, Universidad,
+    AsignacionTutoria, Carrera, Curso, EstadoNota, Estudiante,
+    Facultad, Jornada, Matricula, Nota, Periodo, Profesor,
+    Seccion, Universidad,
 )
 
 
@@ -32,8 +34,11 @@ class ModulosAcademicosTests(TestCase):
             "profesores",
             "estudiantes",
             "secciones",
+            "horarios",
             "matriculas",
             "notas",
+            "asignaciones-tutoria",
+            "sesiones-tutoria",
         )
         for modelo in modelos:
             with self.subTest(modelo=modelo):
@@ -45,6 +50,21 @@ class ModulosAcademicosTests(TestCase):
                 )
                 self.assertEqual(lista.status_code, 200)
                 self.assertEqual(formulario.status_code, 200)
+        for ruta in (
+            "/academico/mi-matricula/",
+            "/academico/certificados/",
+            "/academico/certificados/aprobacion/1/",
+            "/academico/certificados/verificar/00000000-0000-0000-0000-000000000000/",
+        ):
+            with self.subTest(ruta=ruta):
+                self.assertEqual(self.client.get(ruta).status_code, 404)
+
+        seccion_form = self.client.get(
+            reverse("academico:crear", kwargs={"modelo": "secciones"})
+        )
+        self.assertContains(seccion_form, "Vespertino")
+        self.assertContains(seccion_form, "Nocturno")
+        self.assertNotContains(seccion_form, "Diurna")
 
     def test_student_can_be_created_searched_updated_and_deleted(self):
         universidad = Universidad.objects.create(
@@ -151,6 +171,20 @@ class DatosDemostracionTests(TestCase):
         self.assertEqual(Estudiante.objects.count(), 7)
         self.assertEqual(Matricula.objects.count(), 7)
 
+    def test_schedule_list_shows_both_jornadas(self):
+        call_command("poblar_datos")
+        usuario = get_user_model().objects.create_user(username="horarios")
+        client = self.client_class()
+        client.force_login(usuario)
+
+        response = client.get(
+            reverse("academico:lista", kwargs={"modelo": "horarios"})
+        )
+
+        self.assertContains(response, "Jornada")
+        self.assertContains(response, "Vespertino")
+        self.assertContains(response, "Nocturno")
+
     def test_seed_removes_records_left_by_eleven_record_version(self):
         call_command("poblar_datos")
         periodo = Periodo.objects.get(nombre="2026-1")
@@ -159,7 +193,7 @@ class DatosDemostracionTests(TestCase):
             curso=curso_red,
             periodo=periodo,
             paralelo="A",
-            jornada=Jornada.DIURNA,
+            jornada=Jornada.VESPERTINA,
         )
 
         for numero in range(8, 12):
@@ -183,9 +217,9 @@ class DatosDemostracionTests(TestCase):
         profesor = Profesor.objects.get(cedula="0933333333")
         secciones_antiguas = (
             ("RED-101", "B", Jornada.NOCTURNA),
-            ("RED-102", "A", Jornada.DIURNA),
+            ("RED-102", "A", Jornada.VESPERTINA),
             ("RED-102", "B", Jornada.NOCTURNA),
-            ("RED-201", "A", Jornada.DIURNA),
+            ("RED-201", "A", Jornada.VESPERTINA),
         )
         for codigo, paralelo, jornada in secciones_antiguas:
             Seccion.objects.create(
@@ -274,15 +308,20 @@ class ExportacionesTests(TestCase):
 
 class MatriculaNotasTests(TestCase):
     def setUp(self):
-        usuario = get_user_model().objects.create_user(
+        self.usuario = get_user_model().objects.create_user(
             username="matriculas",
             password="Dahlia-River-4092!",
         )
-        self.client.force_login(usuario)
+        self.client.force_login(self.usuario)
         call_command("poblar_datos")
+        estudiante = Estudiante.objects.first()
+        estudiante.cuenta = self.usuario
+        estudiante.save(update_fields=["cuenta"])
 
     def test_editing_enrollment_saves_its_note_in_the_same_form(self):
-        nota = Nota.objects.select_related("matricula").first()
+        nota = Nota.objects.filter(
+            matricula__estudiante__cuenta=self.usuario,
+        ).select_related("matricula").first()
         matricula = nota.matricula
         url = reverse(
             "academico:editar",
@@ -311,3 +350,31 @@ class MatriculaNotasTests(TestCase):
         nota.refresh_from_db()
         self.assertEqual(nota.n1, Decimal("88.00"))
         self.assertEqual(nota.promedio, Decimal("89.00"))
+
+
+class TutoriasYCertificadosTests(TestCase):
+    def setUp(self):
+        self.usuario = get_user_model().objects.create_user(
+            username="tutorias",
+            password="Dahlia-River-4092!",
+        )
+        self.client.force_login(self.usuario)
+        call_command("poblar_datos")
+        estudiante = Estudiante.objects.first()
+        estudiante.cuenta = self.usuario
+        estudiante.save(update_fields=["cuenta"])
+
+    def test_student_cannot_have_two_active_tutors(self):
+        estudiante = Estudiante.objects.first()
+        profesores = list(Profesor.objects.all()[:2])
+        AsignacionTutoria.objects.create(
+            estudiante=estudiante,
+            tutor=profesores[0],
+        )
+        segunda = AsignacionTutoria(
+            estudiante=estudiante,
+            tutor=profesores[1],
+        )
+
+        with self.assertRaises(ValidationError):
+            segunda.full_clean()
